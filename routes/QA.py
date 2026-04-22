@@ -13,7 +13,7 @@ from models.QuestionAnswering.QAStates import QuestionAnsweringState
 from stores.llm import EmbeddingProviderFactory
 
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 app_settings = get_settings()

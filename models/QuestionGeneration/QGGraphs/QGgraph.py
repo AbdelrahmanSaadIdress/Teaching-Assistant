@@ -8,7 +8,7 @@ from stores.llm import LLMProviderFactory
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import interrupt
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 
 
 from ..QGStates import QuestionGenState
@@ -114,7 +114,7 @@ def question_rewriter(state:QuestionGenState)->QuestionGenState:
         Explanation=response.explanation
     )
 
-    from langchain.prompts import ChatPromptTemplate
+    from langchain_core.prompts import ChatPromptTemplate
 
     summary_prompt = ChatPromptTemplate.from_messages([
         ("system", "You are an expert assistant. Summarize the following history of question generations and refinements into a concise summary, keeping all important decisions, feedback, and changes."),

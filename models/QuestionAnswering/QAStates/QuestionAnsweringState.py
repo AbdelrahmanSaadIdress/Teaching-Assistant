@@ -1,6 +1,6 @@
 from typing import TypedDict
 from langchain_core.messages import BaseMessage
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 class QuestionAnsweringState(TypedDict):
     message: list[BaseMessage]

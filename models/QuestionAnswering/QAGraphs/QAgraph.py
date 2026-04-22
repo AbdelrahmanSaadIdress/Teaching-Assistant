@@ -8,9 +8,9 @@ from stores.llm import LLMProviderFactory, EmbeddingProviderFactory
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import AIMessage
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from ..QAStates import QuestionAnsweringState
 from ..QAPrompts import GradeQuestionPrompt as question_grading_prompt

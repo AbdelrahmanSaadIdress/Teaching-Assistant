@@ -4,7 +4,6 @@ from typing import List
 class Settings(BaseSettings):
     APP_NAME:str
     APP_VERSION:str
-    OPENAI_API_KEY:str
 
     FILE_ALLOWED_TYPES:List[str]
     FILE_MAX_SIZE:int  
@@ -24,7 +23,6 @@ class Settings(BaseSettings):
     EMBEDDING_BACKEND: str
 
     OPENAI_API_KEY: str = None
-    # OPENAI_API_URL: str = None
     COHERE_API_KEY: str = None
     GEMINI_API_KEY: str = None
     GROQ_API_KEY: str = None
