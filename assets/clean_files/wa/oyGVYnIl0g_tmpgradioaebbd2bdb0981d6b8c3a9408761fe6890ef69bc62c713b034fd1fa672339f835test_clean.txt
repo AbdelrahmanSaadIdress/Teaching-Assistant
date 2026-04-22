@@ -1,0 +1,24 @@
+Title: Introduction to Computer Networks
+
+Computer networks allow computers to exchange data and share resources. The Internet is the largest computer network in the world, connecting millions of devices globally. 
+
+There are two main types of network protocols used for sending data: TCP (Transmission Control Protocol) and UDP (User Datagram Protocol). TCP is connection-oriented and ensures that all data is delivered correctly and in order. UDP, on the other hand, is connectionless and does not guarantee delivery or ordering, but it is faster and suitable for real-time applications like video streaming.
+
+Network topologies define how devices are connected. Common topologies include star, ring, bus, and mesh. Each topology has advantages and disadvantages depending on the size of the network and fault tolerance requirements.
+
+In computer networks, IP addresses uniquely identify devices. IPv4 uses 32-bit addresses, while IPv6 uses 128-bit addresses. Subnetting allows networks to be divided into smaller segments for better management and security.
+
+Security is critical in networking. Firewalls, encryption, and secure protocols like HTTPS protect data from unauthorized access. Network administrators must regularly monitor traffic to detect intrusions and prevent attacks.
+
+---
+
+Title: Basics of Object-Oriented Programming
+
+Object-oriented programming (OOP) is a paradigm based on the concept of objects, which contain data and code. The main principles of OOP are:
+
+1. Encapsulation – bundling data with methods that operate on that data.
+2. Inheritance – creating new classes based on existing classes.
+3. Polymorphism – treating objects of different classes through the same interface.
+4. Abstraction – hiding internal details and exposing only necessary features.
+
+Classes are blueprints for objects, and methods define the behavior of objects. Proper use of OOP leads to modular, maintainable, and reusable code.
