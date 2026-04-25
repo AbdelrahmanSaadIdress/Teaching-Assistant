@@ -2,13 +2,15 @@ from fastapi import FastAPI
 app = FastAPI()
 
 
-from routes import startRoute, dataRoute, QGRoute, SGRoute, QARoute
+from routes import startRoute, dataRoute, QGRoute, SGRoute, QARoute, BulkQGRoute
 
 app.include_router(startRoute)
 app.include_router(dataRoute)
 app.include_router(QGRoute)
 app.include_router(SGRoute)
 app.include_router(QARoute)
+app.include_router(BulkQGRoute)
+
 
 # # # from helpers import get_settings, Settings, save_graph_png
 # # # from stores.llm.LLMProviderFactory import LLMProviderFactory
