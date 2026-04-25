@@ -2,6 +2,7 @@ import os
 import fitz  # PyMuPDF for PDFs
 import docx
 import logging
+from .doclingParser import DoclingConverter
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ def load_audio_file(path: str) -> str:
 class ProcessController:
 
     @staticmethod
-    def extract_content(file_path: str) -> str:
+    def extract_content(file_path: str, complex_file: bool = False) -> str:
         """Extract raw text from supported file types."""
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -79,8 +80,16 @@ class ProcessController:
         if ext == ".txt":
             return load_txt_file(file_path)
         elif ext == ".pdf":
+            if complex_file:
+                docling_converter = DoclingConverter()
+                document = docling_converter.convert_file(file_path)
+                return docling_converter.to_text(document)
             return load_pdf_file(file_path)
         elif ext == ".docx":
+            if complex_file:
+                docling_converter = DoclingConverter()
+                document = docling_converter.convert_file(file_path)
+                return docling_converter.to_text(document)
             return load_docx_file(file_path)
         elif ext in [".mp3", ".wav", ".m4a", ".aac", ".ogg"]:
             return load_audio_file(file_path)
