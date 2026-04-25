@@ -1,10 +1,16 @@
-from typing import TypedDict, Literal, Union
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain_core.documents import Document
+from typing import TypedDict, Literal, List, Optional
 
 class SummaryGenState(TypedDict):
+    # Input
     context: str
-    summary: str
-    old_summary: str
+    depth: Literal["brief", "standard", "detailed"]   # student-controlled depth
+
+    # Pipeline outputs
+    key_terms: str          # JSON string: list of {term, definition}
+    tldr: str               # 3-5 sentence quick recap
+    structured_notes: str   # hierarchical headings + bullets
+    paragraph_summary: str  # flowing prose
+
+    # Feedback loop
     feedback: str
-    Main_Points: str
+    old_output: str         # snapshot before rewrite (for diffing)

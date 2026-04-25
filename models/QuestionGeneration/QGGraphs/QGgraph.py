@@ -33,7 +33,6 @@ def history_to_text(history):
             result.append(str(item))
     return result
 
-
 def question_generation(state:QuestionGenState)->QuestionGenState:
     model = LLMProviderFactory(app_settings).create(
         provider=app_settings.GENERATION_BACKEND,

@@ -3,43 +3,40 @@ import requests
 import mimetypes
 import json
 
-# ----------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # Configuration
-# ----------------------
+# ──────────────────────────────────────────────────────────────────────────────
 FASTAPI_BASE_URL = "http://localhost:5000/api/TA"
+MAX_EXAM_QUESTIONS = 50
 
-# ======================
-# 🎨 ADD THIS CSS (NEW)
-# ======================
+# ──────────────────────────────────────────────────────────────────────────────
+# CSS
+# ──────────────────────────────────────────────────────────────────────────────
 custom_css = """
-/* New vibrant background */
-body {
-    background: linear-gradient(135deg, #0f172a, #3b0764, #6366f1);
-}
+body { background: linear-gradient(135deg, #0f172a, #3b0764, #6366f1); }
 
-/* Container */
 .gradio-container {
     max-width: 1200px !important;
     margin: auto;
     font-family: Inter, system-ui, sans-serif;
 }
-
-/* Card feel */
 .block {
-    background: rgba(15, 23, 42, 0.95) !important; /* slightly darker for contrast */
+    background: rgba(15, 23, 42, 0.95) !important;
     border-radius: 16px !important;
     padding: 20px !important;
     border: 1px solid #1e293b !important;
 }
-
-/* Titles */
 h1 {
     background: linear-gradient(90deg, #6366f1, #22d3ee);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-
-/* Buttons */
+h3 {
+    color: #22d3ee !important;
+}
+p {
+    color: #c7d2fe;
+}
 button {
     background: linear-gradient(135deg, #6366f1, #a855f7) !important;
     color: white !important;
@@ -47,197 +44,192 @@ button {
     font-weight: 700 !important;
     transition: all 0.3s ease !important;
 }
-
 button:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(163, 94, 255, 0.4);
 }
-
-/* Inputs */
-textarea, input {
+textarea, input[type="text"] {
     background: #0f172a !important;
     color: #e5e7eb !important;
     border-radius: 12px !important;
     border: 1px solid #1e293b !important;
 }
+.tab-nav button { color: #c7d2fe !important; font-weight: 600; }
+.tab-nav button.selected { background: #1e293b !important; border-radius: 12px; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
 
-/* Tabs */
-.tab-nav button {
-    color: #c7d2fe !important;
-    font-weight: 600;
+/* Summary section labels */
+.section-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #a5b4fc;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
 }
 
-.tab-nav button.selected {
-    background: #1e293b !important;
-    border-radius: 12px;
+.exam-results h2 {
+    color: #22d3ee;
+    font-weight: 800;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 6px;
-}
-::-webkit-scrollbar-thumb {
-    background: #6366f1;
-    border-radius: 10px;
+.exam-results h3 {
+    color: #a5b4fc;
 }
 
-
-/* Exam card styles */
-.exam-question-card {
-    background: rgba(30, 41, 59, 0.9);
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
+.exam-results p {
+    color: #e5e7eb;
 }
-.complexity-easy   { color: #4ade80; font-weight: 700; }
-.complexity-medium { color: #facc15; font-weight: 700; }
-.complexity-hard   { color: #f87171; font-weight: 700; }
 
-/* Score panel */
-.score-correct   { color: #4ade80; }
-.score-incorrect { color: #f87171; }
-
+.exam-results strong {
+    color: #c7d2fe;
+}
 """
 
-# These hold the current exam questions between Gradio callbacks.
-_exam_questions = []   # list of question dicts from the backend
+# ──────────────────────────────────────────────────────────────────────────────
+# Module-level exam state
+# ──────────────────────────────────────────────────────────────────────────────
+_exam_questions = []
 _exam_thread_id = None
-_exam_global_flag = False
 
-# ----------------------
-# Helper Functions
-# ----------------------
+# Module-level summary thread id
+_sg_thread_id = None
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ── Tab 1: File Processing ────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+
 def upload_file_to_fastapi(file, project_id):
-    if file is None or project_id.strip() == "":
+    if file is None or not project_id.strip():
         return "❌ Error: File and Project ID are required.", None, None
     with open(file.name, "rb") as f:
         mime_type = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
         files = {"file": (file.name, f, mime_type)}
-        data = {"project_id": project_id}
+        data  = {"project_id": project_id}
         try:
-            response = requests.post(f"{FASTAPI_BASE_URL}/fileProcessing", files=files, data=data)
-            if response.status_code == 200:
-                json_resp = response.json()
-                clean_text_path = json_resp.get("text_file")
+            resp = requests.post(f"{FASTAPI_BASE_URL}/fileProcessing", files=files, data=data)
+            if resp.status_code == 200:
+                j = resp.json()
                 return (
                     f"✅ File processed successfully!\n"
-                    f"Thread ID: {json_resp.get('thread_id')}\n"
-                    f"Uploaded File: {json_resp.get('uploaded_file')}\n"
-                    f"Extracted Text File: {clean_text_path}",
-                    json_resp.get("thread_id"),
-                    clean_text_path
+                    f"Thread ID     : {j.get('thread_id')}\n"
+                    f"Uploaded File : {j.get('uploaded_file')}\n"
+                    f"Extracted to  : {j.get('text_file')}",
+                    j.get("thread_id"),
+                    j.get("text_file"),
                 )
-            else:
-                return f"❌ Error {response.status_code}: {response.text}", None, None
+            return f"❌ Error {resp.status_code}: {resp.text}", None, None
         except Exception as e:
-            return f"❌ Exception: {str(e)}", None, None
+            return f"❌ Exception: {e}", None, None
 
 
-# ----------------------
-# Question Generation
-# ----------------------
-global_qg_flag = False
+# ──────────────────────────────────────────────────────────────────────────────
+# ── Tab 2: Question Generation (one-by-one) ───────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
-def start_question_generation(project_id, thread_id, question_type, clean_text_file_path):
-    global global_qg_flag
-    if  global_qg_flag:
-        _ = continue_question_generation(project_id, thread_id, "save", question_type, clean_text_file_path)
-    if not thread_id or not clean_text_file_path:
-        return "❌ Error: Please upload and process a file first.", None
+_qg_active = False   # track whether a session is open
+
+def start_question_generation(project_id, qg_thread_id, question_type, clean_text_file_path):
+    global _qg_active
+    # If a session is already open, close it first
+    if _qg_active and qg_thread_id:
+        try:
+            requests.post(f"{FASTAPI_BASE_URL}/continue", json={
+                "project_id": project_id,
+                "thread_id": qg_thread_id,
+                "user_feedback": "save",
+                "question_type": question_type,
+                "clean_text_file_path": clean_text_file_path,
+            })
+        except Exception:
+            pass
+
+    if not clean_text_file_path:
+        return "❌ Please upload and process a file first.", None
     payload = {
         "project_id": project_id,
         "question_type": question_type,
-        "clean_text_file_path": clean_text_file_path
+        "clean_text_file_path": clean_text_file_path,
     }
     try:
-        response = requests.post(f"{FASTAPI_BASE_URL}/start_session", json=payload)
-        if response.status_code == 200:
-            json_resp = response.json()
-            question_data = json_resp.get("graph_response", {})
-            options = question_data.get('options')
-            if isinstance(options, list):
-                options = "\n".join(options)
+        resp = requests.post(f"{FASTAPI_BASE_URL}/start_session", json=payload)
+        if resp.status_code == 200:
+            j = resp.json()
+            q = j.get("graph_response", {})
+            opts = q.get("options")
+            opts_str = "\n".join(opts) if isinstance(opts, list) else (opts or "—")
+            _qg_active = True
             return (
-                f"✅ Question Generated Successfully!\n\n"
-                f"Question: {question_data.get('question')}\n"
-                f"Options:\n{options}\n"
-                f"\n==================================================\n"
-                f"Answer: {question_data.get('answer')}\n"
-                f"Explanation: {question_data.get('explanation')}",
-                json_resp.get("thread_id")
+                f"Question : {q.get('question')}\n\n"
+                f"Options  :\n{opts_str}\n\n"
+                f"{'─'*50}\n"
+                f"Answer   : {q.get('answer')}\n"
+                f"Explain  : {q.get('explanation')}",
+                j.get("thread_id"),
             )
-        else:
-            return f"❌ Error {response.status_code}: {response.text}", None
+        return f"❌ Error {resp.status_code}: {resp.text}", None
     except Exception as e:
-        return f"❌ Exception: {str(e)}", None
-    
-    global_qg_flag = True
+        return f"❌ Exception: {e}", None
 
-def continue_question_generation(project_id, thread_id, user_feedback, question_type, clean_text_file_path):
-    if not thread_id or not clean_text_file_path:
-        return "❌ Error: Please start a question generation session first.", None
+
+def continue_question_generation(project_id, qg_thread_id, user_feedback, question_type, clean_text_file_path):
+    if not qg_thread_id or not clean_text_file_path:
+        return "❌ Start a session first.", None
     payload = {
         "project_id": project_id,
-        "thread_id": thread_id,
+        "thread_id": qg_thread_id,
         "user_feedback": user_feedback,
         "question_type": question_type,
-        "clean_text_file_path": clean_text_file_path
+        "clean_text_file_path": clean_text_file_path,
     }
     try:
-        response = requests.post(f"{FASTAPI_BASE_URL}/continue", json=payload)
-        if response.status_code == 200:
-            json_resp = response.json()
-            question_data = json_resp.get("graph_response", {})
-            options = question_data.get('options')
-            if isinstance(options, list):
-                options = "\n".join(options)
+        resp = requests.post(f"{FASTAPI_BASE_URL}/continue", json=payload)
+        if resp.status_code == 200:
+            j = resp.json()
+            q = j.get("graph_response", {})
+            opts = q.get("options")
+            opts_str = "\n".join(opts) if isinstance(opts, list) else (opts or "—")
             return (
-                f"✅ Question Updated!\n\n"
-                f"Question: {question_data.get('question')}\n"
-                f"Options:\n{options}\n"
-                f"Answer: {question_data.get('answer')}\n"
-                f"Explanation: {question_data.get('explanation')}",
-                json_resp.get("thread_id")
+                f"Question : {q.get('question')}\n\n"
+                f"Options  :\n{opts_str}\n\n"
+                f"{'─'*50}\n"
+                f"Answer   : {q.get('answer')}\n"
+                f"Explain  : {q.get('explanation')}",
+                j.get("thread_id"),
             )
-        else:
-            return f"❌ Error {response.status_code}: {response.text}", None
+        return f"❌ Error {resp.status_code}: {resp.text}", None
     except Exception as e:
-        return f"❌ Exception: {str(e)}", None
+        return f"❌ Exception: {e}", None
 
 
-# ─────────────────────────────────────────
-# Bulk Question Generation helpers
-# ─────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# ── Tab 3: Bulk Question Generation / Exam ────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 
-def _complexity_badge(level: str) -> str:
-    icons = {"easy": "🟢 Easy", "medium": "🟡 Medium", "hard": "🔴 Hard"}
-    return icons.get(level.lower(), level)
+def _badge(level: str) -> str:
+    return {"easy": "🟢 Easy", "medium": "🟡 Medium", "hard": "🔴 Hard"}.get(
+        level.lower(), level
+    )
 
-def _render_questions_preview(questions: list) -> str:
-    """Render questions as readable text for the preview box."""
+
+def _preview_questions(questions: list) -> str:
     if not questions:
         return ""
     lines = []
     for i, q in enumerate(questions, 1):
-        badge = _complexity_badge(q.get("complexity", ""))
-        qtype = q.get("question_type", "")
-        lines.append(f"─── Q{i} | {badge} | {qtype} ───")
+        lines.append(f"── Q{i} | {_badge(q.get('complexity',''))} | {q.get('question_type','')} ──")
         lines.append(q.get("question", ""))
-        opts = q.get("options")
-        if opts:
-            for o in opts:
-                lines.append(f"  {o}")
+        for o in q.get("options") or []:
+            lines.append(f"   {o}")
         lines.append("")
     return "\n".join(lines)
 
 
 def start_bulk_generation(project_id, clean_text_file_path, question_type, num_questions):
     global _exam_questions, _exam_thread_id
-
     if not clean_text_file_path:
-        return "❌ Please upload and process a file first.", "", gr.update(visible=False), gr.update(visible=False)
-
+        return "❌ Upload a file first.", "", gr.update(visible=False), gr.update(visible=False)
     payload = {
         "project_id": project_id,
         "question_type": question_type,
@@ -248,361 +240,526 @@ def start_bulk_generation(project_id, clean_text_file_path, question_type, num_q
         resp = requests.post(f"{FASTAPI_BASE_URL}/start_bulk_session", json=payload)
         if resp.status_code != 200:
             return f"❌ Error {resp.status_code}: {resp.text}", "", gr.update(visible=False), gr.update(visible=False)
-
         data = resp.json()
         _exam_questions = data.get("questions", [])
         _exam_thread_id = data.get("thread_id")
-
-        preview = _render_questions_preview(_exam_questions)
-        status_msg = f"✅ Generated {len(_exam_questions)} questions | Thread: {_exam_thread_id}"
-
         return (
-            status_msg,
-            preview,
-            gr.update(visible=True),   # feedback row
-            gr.update(visible=True),   # start exam button
+            f"✅ {len(_exam_questions)} questions generated  |  Thread: {_exam_thread_id}",
+            _preview_questions(_exam_questions),
+            gr.update(visible=True),
+            gr.update(visible=True),
         )
     except Exception as e:
-        return f"❌ Exception: {str(e)}", "", gr.update(visible=False), gr.update(visible=False)
+        return f"❌ Exception: {e}", "", gr.update(visible=False), gr.update(visible=False)
 
 
 def apply_bulk_feedback(feedback_text):
-    global _exam_questions, _exam_thread_id
-
+    global _exam_questions
     if not _exam_thread_id:
-        return "❌ No active session. Generate questions first.", "", gr.update(visible=False), gr.update(visible=False)
-
-    payload = {"thread_id": _exam_thread_id, "user_feedback": feedback_text}
+        return "❌ No active session.", "", gr.update(visible=False), gr.update(visible=False)
     try:
-        resp = requests.post(f"{FASTAPI_BASE_URL}/bulk_continue", json=payload)
+        resp = requests.post(
+            f"{FASTAPI_BASE_URL}/bulk_continue",
+            json={"thread_id": _exam_thread_id, "user_feedback": feedback_text},
+        )
         if resp.status_code != 200:
             return f"❌ Error {resp.status_code}: {resp.text}", "", gr.update(visible=False), gr.update(visible=False)
-
         data = resp.json()
         _exam_questions = data.get("questions", [])
-
-        preview = _render_questions_preview(_exam_questions)
-        status_msg = f"✅ Questions updated ({len(_exam_questions)} total) | Thread: {_exam_thread_id}"
         return (
-            status_msg,
-            preview,
+            f"✅ Updated — {len(_exam_questions)} questions  |  Thread: {_exam_thread_id}",
+            _preview_questions(_exam_questions),
             gr.update(visible=True),
             gr.update(visible=True),
         )
     except Exception as e:
-        return f"❌ Exception: {str(e)}", "", gr.update(visible=False), gr.update(visible=False)
+        return f"❌ Exception: {e}", "", gr.update(visible=False), gr.update(visible=False)
 
-# ─────────────────────────────────────────
-# Exam rendering — dynamic radio components
-# ─────────────────────────────────────────
 
 def build_exam_ui():
-    """
-    Called when 'Start Exam' is pressed.
-    Returns updates for all 50 possible question slots.
-    """
-    MAX_Q = 50
     updates = []
-
-    for i in range(MAX_Q):
+    for i in range(MAX_EXAM_QUESTIONS):
         if i < len(_exam_questions):
-            q = _exam_questions[i]
-            badge = _complexity_badge(q.get("complexity", ""))
-            qtype = q.get("question_type", "")
-            label = f"Q{i+1} | {badge} | {qtype}\n{q['question']}"
-            opts = q.get("options") or ["True", "False"]
-            updates += [
-                gr.update(visible=True, label=label, choices=opts, value=None),  # radio
-            ]
+            q     = _exam_questions[i]
+            label = f"Q{i+1}  |  {_badge(q.get('complexity',''))}  |  {q.get('question_type','')}\n\n{q['question']}"
+            opts  = q.get("options") or ["True", "False"]
+            updates.append(gr.update(visible=True, label=label, choices=opts, value=None))
         else:
-            updates += [
-                gr.update(visible=False, choices=[], value=None),
-            ]
-
-    # also show submit row, hide start-exam btn
+            updates.append(gr.update(visible=False, choices=[], value=None))
     updates.append(gr.update(visible=True))   # submit_row
     updates.append(gr.update(visible=False))  # start_exam_btn
     return updates
 
 
 def score_exam(*user_answers):
-    """
-    Score all answers and produce a detailed results report.
-    user_answers: tuple of answers (one per question slot, MAX_Q total)
-    """
     if not _exam_questions:
         return "❌ No exam loaded."
-
-    total = len(_exam_questions)
-    correct = 0
+    total, correct = len(_exam_questions), 0
     lines = ["# 📊 Exam Results\n"]
-
     for i, q in enumerate(_exam_questions):
-        user_ans = user_answers[i] if i < len(user_answers) else None
+        user_ans    = user_answers[i] if i < len(user_answers) else None
         correct_ans = q["answer"]
-        badge = _complexity_badge(q.get("complexity", ""))
-        qtype = q.get("question_type", "")
-
-        # Normalize MCQ: extract letter if user selected "A. Some text"
-        normalized_user = ""
+        qtype       = q.get("question_type", "")
+        norm        = ""
         if user_ans:
-            normalized_user = user_ans.strip()
-            if qtype == "MCQ" and len(normalized_user) > 1 and normalized_user[1] == ".":
-                normalized_user = normalized_user[0].upper()
-
-        is_correct = normalized_user.upper() == correct_ans.upper() if normalized_user else False
+            norm = user_ans.strip()
+            if qtype == "MCQ" and len(norm) > 1 and norm[1] == ".":
+                norm = norm[0].upper()
+        is_correct = norm.upper() == correct_ans.upper() if norm else False
         if is_correct:
             correct += 1
-
-        result_icon = "✅" if is_correct else "❌"
-        lines.append(f"### {result_icon} Q{i+1} | {badge} | {qtype}")
-        lines.append(f"**Question:** {q['question']}")
-
-        if q.get("options"):
-            for opt in q["options"]:
-                lines.append(f"- {opt}")
-
-        lines.append(f"**Your answer:** {user_ans or '(no answer)'}")
+        icon = "✅" if is_correct else "❌"
+        lines.append(f"### {icon} Q{i+1}  |  {_badge(q.get('complexity',''))}  |  {qtype}")
+        lines.append(f"**{q['question']}**")
+        for opt in (q.get("options") or []):
+            lines.append(f"- {opt}")
+        lines.append(f"\n**Your answer:** {user_ans or '*(no answer)*'}")
         if not is_correct:
             lines.append(f"**Correct answer:** {correct_ans}")
-        lines.append(f"**Explanation:** {q['explanation']}")
-        lines.append("")
-
-    pct = round(correct / total * 100) if total else 0
-    grade_emoji = "🏆" if pct >= 90 else "👍" if pct >= 70 else "📚" if pct >= 50 else "💪"
-    summary = f"## {grade_emoji} Score: {correct}/{total} ({pct}%)\n\n"
-    return summary + "\n".join(lines)
+        lines.append(f"**Explanation:** {q['explanation']}\n")
+    pct   = round(correct / total * 100) if total else 0
+    emoji = "🏆" if pct >= 90 else "👍" if pct >= 70 else "📚" if pct >= 50 else "💪"
+    return f"## {emoji}  Score: {correct}/{total}  ({pct}%)\n\n" + "\n".join(lines)
 
 
-# ----------------------
-# Streaming QA
-# ----------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# ── Tab 4: Question Answering ─────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+
 def start_qa_streaming(clean_text_file_path, user_question):
     payload = {"clean_text_file_path": clean_text_file_path, "user_question": user_question}
-    resp = requests.post(f"{FASTAPI_BASE_URL}/start_QA_session", json=payload, stream=True)
-    answer = ""
-    thread_id = None
+    resp    = requests.post(f"{FASTAPI_BASE_URL}/start_QA_session", json=payload, stream=True)
+    answer, thread_id = "", None
     for line in resp.iter_lines(decode_unicode=True):
         if line.startswith("data: "):
-            data_json = json.loads(line[6:])
-            thread_id = data_json.get("thread_id", thread_id)
-            if data_json.get("event") == "token":
-                answer += data_json.get("token", "")
+            d = json.loads(line[6:])
+            thread_id = d.get("thread_id", thread_id)
+            if d.get("event") == "token":
+                answer += d.get("token", "")
                 yield answer, thread_id
     yield answer, thread_id
 
-# ----------------------
-# Streaming Summarization
-# ----------------------
-def start_summarization_stream(clean_text_file_path, project_id):
-    payload = {"clean_text_file_path": clean_text_file_path, "project_id": project_id}
-    resp = requests.post(f"{FASTAPI_BASE_URL}/start_SG_session", json=payload, stream=True)
-    summary = ""
-    thread_id = None
+
+def continue_qa_streaming(clean_text_file_path, user_question, qa_thread_id):
+    payload = {"user_question": user_question, "thread_id": qa_thread_id}
+    resp    = requests.post(f"{FASTAPI_BASE_URL}/QA_continue", json=payload, stream=True)
+    answer  = ""
     for line in resp.iter_lines(decode_unicode=True):
         if line.startswith("data: "):
-            data_json = json.loads(line[6:])
-            thread_id = data_json.get("thread_id", thread_id)
-            if data_json.get("event") == "token":
-                summary += data_json.get("token", "")
-                yield summary, thread_id
-    yield summary, thread_id
+            d = json.loads(line[6:])
+            if d.get("event") == "token":
+                answer += d.get("token", "")
+                yield answer, qa_thread_id
+    yield answer, qa_thread_id
 
-# ----------------------
-# Continue Summarization with Feedback (Streaming)
-# ----------------------
-def continue_summarization_feedback_stream(project_id, clean_text_file_path, thread_id, user_feedback):
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ── Tab 5: Summarization (updated) ───────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _parse_key_terms(raw: str) -> str:
+    """Turn JSON key-terms array into a readable bullet list."""
+    try:
+        terms = json.loads(raw)
+        lines = []
+        for t in terms:
+            lines.append(f"• **{t['term']}** — {t['definition']}")
+        return "\n".join(lines)
+    except Exception:
+        return raw   # fallback: show raw if parsing fails
+
+
+def start_summarization_stream(clean_text_file_path, project_id, depth):
+    global _sg_thread_id
+    if not clean_text_file_path:
+        yield "❌ Upload a file first.", "", "", "", None
+        return
+
+    payload = {
+        "clean_text_file_path": clean_text_file_path,
+        "project_id": project_id,
+        "depth": depth,
+    }
+    resp = requests.post(f"{FASTAPI_BASE_URL}/start_SG_session", json=payload, stream=True)
+
+    key_terms_buf = tldr_buf = notes_buf = para_buf = ""
+    thread_id = None
+
+    # which buffer is currently receiving tokens
+    active_section = None
+
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line.startswith("data: "):
+            continue
+        d = json.loads(line[6:])
+        evt = d.get("event")
+
+        if evt == "session_start":
+            thread_id   = d.get("thread_id")
+            _sg_thread_id = thread_id
+
+        elif evt == "section_start":
+            active_section = d.get("section")
+
+        elif evt == "token":
+            section = d.get("section", active_section)
+            token   = d.get("token", "")
+            if section == "key_terms":
+                key_terms_buf += token
+            elif section == "tldr":
+                tldr_buf += token
+            elif section == "structured_notes":
+                notes_buf += token
+            elif section in ("paragraph_summary", "rewriter"):
+                para_buf += token
+            yield (
+                _parse_key_terms(key_terms_buf),
+                tldr_buf,
+                notes_buf,
+                para_buf,
+                thread_id,
+            )
+
+        elif evt == "section_end":
+            active_section = None
+
+        elif evt == "interrupt":
+            # Graph is waiting for feedback — yield final state
+            payload_data = d.get("payload", {})
+            key_terms_buf = _parse_key_terms(payload_data.get("key_terms", key_terms_buf))
+            tldr_buf      = payload_data.get("tldr", tldr_buf)
+            notes_buf     = payload_data.get("structured_notes", notes_buf)
+            para_buf      = payload_data.get("paragraph_summary", para_buf)
+            yield key_terms_buf, tldr_buf, notes_buf, para_buf, thread_id
+
+        elif evt == "stream_end":
+            break
+
+    yield key_terms_buf, tldr_buf, notes_buf, para_buf, thread_id
+
+
+def continue_summarization_stream(project_id, clean_text_file_path, sg_thread_id, user_feedback):
+    global _sg_thread_id
+    if not sg_thread_id:
+        yield "", "", "", ""
+        return
+
     payload = {
         "project_id": project_id,
         "clean_text_file_path": clean_text_file_path,
-        "thread_id": thread_id,
-        "user_feedback": user_feedback
+        "thread_id": sg_thread_id,
+        "user_feedback": user_feedback,
     }
     resp = requests.post(f"{FASTAPI_BASE_URL}/SG_continue", json=payload, stream=True)
-    summary = ""
-    for line in resp.iter_lines(decode_unicode=True):
-        if line.startswith("data: "):
-            data_json = json.loads(line[6:])
-            if data_json.get("event") == "token":
-                summary += data_json.get("token", "")
-                yield summary
-    yield summary
 
-# ----------------------
-# Gradio Interface
-# ----------------------
-MAX_QUESTIONS = 50  # maximum supported questions in the exam UI
+    key_terms_buf = tldr_buf = notes_buf = para_buf = ""
+    active_section = None
+
+    for line in resp.iter_lines(decode_unicode=True):
+        if not line.startswith("data: "):
+            continue
+        d   = json.loads(line[6:])
+        evt = d.get("event")
+
+        if evt == "section_start":
+            active_section = d.get("section")
+
+        elif evt == "token":
+            section = d.get("section", active_section)
+            token   = d.get("token", "")
+            if section == "key_terms":
+                key_terms_buf += token
+            elif section == "tldr":
+                tldr_buf += token
+            elif section == "structured_notes":
+                notes_buf += token
+            elif section in ("paragraph_summary", "rewriter"):
+                para_buf += token
+            yield (
+                _parse_key_terms(key_terms_buf),
+                tldr_buf,
+                notes_buf,
+                para_buf,
+            )
+
+        elif evt == "section_end":
+            active_section = None
+
+        elif evt == "interrupt":
+            payload_data  = d.get("payload", {})
+            key_terms_buf = _parse_key_terms(payload_data.get("key_terms", key_terms_buf))
+            tldr_buf      = payload_data.get("tldr", tldr_buf)
+            notes_buf     = payload_data.get("structured_notes", notes_buf)
+            para_buf      = payload_data.get("paragraph_summary", para_buf)
+            yield key_terms_buf, tldr_buf, notes_buf, para_buf
+
+        elif evt == "stream_end":
+            break
+
+    yield key_terms_buf, tldr_buf, notes_buf, para_buf
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gradio Layout
+# ──────────────────────────────────────────────────────────────────────────────
+
 with gr.Blocks(css=custom_css) as demo:
-    gr.Markdown("# 🧠 College Study Assistant (LLM-Powered)")
+
+    gr.Markdown("# 🧠 College Study Assistant")
     gr.Markdown(
-        "<h3 style='background: linear-gradient(90deg, #6366f1, #22d3ee); "
-        "-webkit-background-clip: text; -webkit-text-fill-color: transparent;'>"
-        "Upload documents, generate questions, take exams, ask questions, and summarize content."
+        "<h3 style='background:linear-gradient(90deg,#6366f1,#22d3ee);"
+        "-webkit-background-clip:text;-webkit-text-fill-color:transparent;'>"
+        "Upload documents · Generate questions · Take exams · Ask questions · Summarize content"
         "</h3>"
     )
 
-    # Shared state
-    qg_thread_id = gr.State(None)
-    qa_thread_id = gr.State(None)
-    sg_thread_id = gr.State(None)
+    # ── Shared state ──────────────────────────────────────────────────────────
+    qg_thread_id_state         = gr.State(None)
+    qa_thread_id_state         = gr.State(None)
+    sg_thread_id_state         = gr.State(None)
     clean_text_file_path_state = gr.State(None)
 
     with gr.Tabs():
 
-        # ── Tab 1: File Processing ──────────────────────────────────────
+        # ─────────────────────────────────────────────────────────────────────
+        # Tab 1 — File Processing
+        # ─────────────────────────────────────────────────────────────────────
         with gr.TabItem("📄 File Processing"):
-            file_input = gr.File(label="Upload File")
-            project_id_input = gr.Textbox(label="Project ID", placeholder="Enter Project ID")
-            process_btn = gr.Button("Upload & Process")
-            process_output = gr.Textbox(label="Output", lines=6)
+            gr.Markdown("### Upload and extract your document")
+            file_input      = gr.File(label="Upload File (PDF, TXT, DOCX, Audio)")
+            project_id_input = gr.Textbox(label="Project ID", placeholder="e.g. bio101")
+            process_btn     = gr.Button("⬆️ Upload & Process")
+            process_output  = gr.Textbox(label="Status", lines=5, interactive=False)
+
             process_btn.click(
                 upload_file_to_fastapi,
                 inputs=[file_input, project_id_input],
-                outputs=[process_output, qg_thread_id, clean_text_file_path_state],
+                outputs=[process_output, qg_thread_id_state, clean_text_file_path_state],
             )
 
-        with gr.TabItem("❓ Question Generation"):
-            question_type_input = gr.Dropdown(["MCQ", "T/F"], label="Question Type", value="MCQ")
-            generate_btn = gr.Button("Generate Question")
-            question_output = gr.Textbox(label="Generated Question", lines=8)
-            generate_btn.click(
+        # ─────────────────────────────────────────────────────────────────────
+        # Tab 2 — Question Generation (one-by-one)
+        # ─────────────────────────────────────────────────────────────────────
+        with gr.TabItem("✏️ Question Generation"):
+            gr.Markdown(
+                "### Generate questions one at a time\n"
+                "Provide feedback to refine, or type **`save`** to finish the session."
+            )
+            qg_type_input   = gr.Dropdown(["MCQ", "T/F"], label="Question Type", value="MCQ")
+            qg_generate_btn = gr.Button("🎯 Generate Question")
+            qg_output       = gr.Textbox(label="Generated Question", lines=10, interactive=False)
+
+            qg_generate_btn.click(
                 start_question_generation,
-                inputs=[project_id_input, qg_thread_id, question_type_input, clean_text_file_path_state],
-                outputs=[question_output, qg_thread_id]
+                inputs=[project_id_input, qg_thread_id_state, qg_type_input, clean_text_file_path_state],
+                outputs=[qg_output, qg_thread_id_state],
             )
 
-            feedback_input = gr.Textbox(label="Feedback", placeholder="Type feedback, 'auto' or 'save'")
-            continue_btn = gr.Button("Apply Feedback")
-            continue_output = gr.Textbox(label="Updated Question", lines=8)
-            continue_btn.click(
-                continue_question_generation,
-                inputs=[project_id_input, qg_thread_id, feedback_input, question_type_input, clean_text_file_path_state],
-                outputs=[continue_output, qg_thread_id]
-            )
-
-        with gr.TabItem("❓ Question Generation & Exam"):
- 
-            gr.Markdown("## ⚙️ Configure Your Exam")
+            gr.Markdown("---")
+            gr.Markdown("#### 💬 Refine this question")
             with gr.Row():
-                question_type_input = gr.Dropdown(
-                    ["MCQ", "T/F", "Both"],
-                    label="Question Type",
-                    value="MCQ",
+                qg_feedback_input = gr.Textbox(
+                    label="Feedback",
+                    placeholder="Type feedback, 'auto' to auto-improve, or 'save' to end session",
+                    scale=4,
                 )
-                num_questions_input = gr.Slider(
-                    minimum=1, maximum=50, step=1, value=5,
-                    label="Number of Questions",
-                )
- 
-            generate_bulk_btn = gr.Button("🎲 Generate Questions", variant="primary")
-            generation_status = gr.Textbox(label="Status", lines=1, interactive=False)
-            questions_preview = gr.Textbox(
-                label="📋 Generated Questions Preview (read-only)",
-                lines=15,
-                interactive=False,
+                qg_continue_btn = gr.Button("🔄 Apply", scale=1)
+            qg_continue_output = gr.Textbox(label="Refined Question", lines=10, interactive=False)
+
+            qg_continue_btn.click(
+                continue_question_generation,
+                inputs=[project_id_input, qg_thread_id_state, qg_feedback_input, qg_type_input, clean_text_file_path_state],
+                outputs=[qg_continue_output, qg_thread_id_state],
             )
- 
-            # Feedback row (hidden until questions exist)
-            with gr.Row(visible=False) as feedback_row:
-                with gr.Column():
-                    gr.Markdown("### 💬 Not happy with these questions?")
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Tab 3 — Bulk Generation / Exam
+        # ─────────────────────────────────────────────────────────────────────
+        with gr.TabItem("📝 Exam Mode"):
+            gr.Markdown("### Configure and take an AI-generated exam")
+
+            with gr.Row():
+                bulk_type_input = gr.Dropdown(
+                    ["MCQ", "T/F", "Both"], label="Question Type", value="MCQ", scale=1
+                )
+                num_q_slider = gr.Slider(
+                    minimum=1, maximum=50, step=1, value=5,
+                    label="Number of Questions", scale=3,
+                )
+
+            bulk_generate_btn  = gr.Button("🎲 Generate Questions", variant="primary")
+            bulk_status        = gr.Textbox(label="Status", lines=1, interactive=False)
+            bulk_preview       = gr.Textbox(
+                label="📋 Questions Preview", lines=14, interactive=False
+            )
+
+            # Feedback section (hidden until questions are ready)
+            with gr.Group(visible=False) as bulk_feedback_group:
+                gr.Markdown("#### 💬 Not satisfied? Refine the questions")
+                with gr.Row():
                     bulk_feedback_input = gr.Textbox(
                         label="Feedback",
-                        placeholder="e.g. 'Make the hard questions harder' or 'Focus more on chapter 3'",
-                        lines=2,
+                        placeholder="e.g. 'Make hard questions harder' or 'Focus on chapter 2'",
+                        scale=4,
                     )
-                    apply_feedback_btn = gr.Button("🔄 Apply Feedback & Regenerate")
- 
-            start_exam_btn = gr.Button("🚀 Start Exam!", variant="primary", visible=False)
- 
-            # ── Exam UI ─────────────────────────────────────────────────
+                    bulk_feedback_btn = gr.Button("🔄 Regenerate", scale=1)
+
+            start_exam_btn = gr.Button("🚀 Start Exam", variant="primary", visible=False)
+
+            # ── Exam questions (pre-created, shown dynamically) ─────────────
             gr.Markdown("---")
-            gr.Markdown("## 📝 Exam")
- 
-            # Pre-create MAX_QUESTIONS radio groups (hidden by default)
             question_radios = []
-            for idx in range(MAX_QUESTIONS):
-                r = gr.Radio(
-                    choices=[],
-                    label=f"Q{idx+1}",
-                    visible=False,
-                    interactive=True,
-                )
+            for idx in range(MAX_EXAM_QUESTIONS):
+                r = gr.Radio(choices=[], label=f"Q{idx+1}", visible=False, interactive=True)
                 question_radios.append(r)
- 
+
             with gr.Row(visible=False) as submit_row:
-                submit_exam_btn = gr.Button("✅ Submit Exam & See Results", variant="primary")
- 
-            exam_results = gr.Markdown(label="Results", value="")
- 
-            # ── Callbacks ───────────────────────────────────────────────
- 
-            generate_bulk_btn.click(
+                submit_exam_btn = gr.Button("✅ Submit & See Results", variant="primary")
+
+            exam_results = gr.Markdown(value="")
+
+            # Callbacks
+            bulk_generate_btn.click(
                 start_bulk_generation,
-                inputs=[project_id_input, clean_text_file_path_state, question_type_input, num_questions_input],
-                outputs=[generation_status, questions_preview, feedback_row, start_exam_btn],
+                inputs=[project_id_input, clean_text_file_path_state, bulk_type_input, num_q_slider],
+                outputs=[bulk_status, bulk_preview, bulk_feedback_group, start_exam_btn],
             )
- 
-            apply_feedback_btn.click(
+            bulk_feedback_btn.click(
                 apply_bulk_feedback,
                 inputs=[bulk_feedback_input],
-                outputs=[generation_status, questions_preview, feedback_row, start_exam_btn],
+                outputs=[bulk_status, bulk_preview, bulk_feedback_group, start_exam_btn],
             )
- 
-            # Start exam: build radio components
             start_exam_btn.click(
                 build_exam_ui,
                 inputs=[],
                 outputs=question_radios + [submit_row, start_exam_btn],
             )
- 
-            # Submit exam: collect all radio answers and score
             submit_exam_btn.click(
                 score_exam,
                 inputs=question_radios,
                 outputs=[exam_results],
             )
- 
-        # ── Tab 3: Question Answering ───────────────────────────────────
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Tab 4 — Question Answering
+        # ─────────────────────────────────────────────────────────────────────
         with gr.TabItem("🗨️ Question Answering"):
-            user_question_input = gr.Textbox(label="Your Question", placeholder="Type a question here")
-            qa_output = gr.Textbox(label="Answer", lines=8)
-            qa_btn = gr.Button("Ask Question")
-            qa_btn.click(
-                start_qa_streaming,
-                inputs=[clean_text_file_path_state, user_question_input],
-                outputs=[qa_output, qa_thread_id],
+            gr.Markdown(
+                "### Ask anything about your document\n"
+                "The assistant answers strictly from the uploaded content."
             )
- 
-        # ── Tab 4: Summarization ────────────────────────────────────────
-        with gr.TabItem("📝 Summarization"):
-            summarize_output = gr.Textbox(label="Summary", lines=8)
-            summarize_btn = gr.Button("Summarize Text")
+            qa_question_input = gr.Textbox(
+                label="Your Question", placeholder="Type your question here…", lines=2
+            )
+            qa_ask_btn  = gr.Button("🔍 Ask")
+            qa_output   = gr.Textbox(label="Answer", lines=10, interactive=False)
+
+            qa_ask_btn.click(
+                start_qa_streaming,
+                inputs=[clean_text_file_path_state, qa_question_input],
+                outputs=[qa_output, qa_thread_id_state],
+            )
+
+            gr.Markdown("---")
+            gr.Markdown("#### 💬 Ask a follow-up question")
+            with gr.Row():
+                qa_followup_input = gr.Textbox(
+                    label="Follow-up Question",
+                    placeholder="Continue the conversation…",
+                    scale=4,
+                )
+                qa_followup_btn = gr.Button("🔍 Ask", scale=1)
+            qa_followup_output = gr.Textbox(label="Follow-up Answer", lines=8, interactive=False)
+
+            qa_followup_btn.click(
+                continue_qa_streaming,
+                inputs=[clean_text_file_path_state, qa_followup_input, qa_thread_id_state],
+                outputs=[qa_followup_output, qa_thread_id_state],
+            )
+
+        # ─────────────────────────────────────────────────────────────────────
+        # Tab 5 — Summarization (updated)
+        # ─────────────────────────────────────────────────────────────────────
+        with gr.TabItem("📚 Summarization"):
+            gr.Markdown("### Generate a professional, student-friendly summary")
+
+            with gr.Row():
+                depth_selector = gr.Radio(
+                    ["brief", "standard", "detailed"],
+                    value="standard",
+                    label="📏 Summary Depth",
+                    info="Brief = essentials only  |  Standard = balanced  |  Detailed = full coverage",
+                )
+                summarize_btn = gr.Button("✨ Generate Summary", variant="primary", scale=1)
+
+            # ── Four output panels ─────────────────────────────────────────
+            with gr.Row():
+                sg_tldr_output = gr.Textbox(
+                    label="⚡ Quick Recap (TL;DR)",
+                    lines=4,
+                    interactive=False,
+                    placeholder="Your quick recap will appear here…",
+                )
+
+            with gr.Row():
+                sg_terms_output = gr.Textbox(
+                    label="🔑 Key Terms & Definitions",
+                    lines=10,
+                    interactive=False,
+                    placeholder="Key terms will appear here…",
+                )
+
+            with gr.Row():
+                sg_notes_output = gr.Textbox(
+                    label="📋 Structured Notes",
+                    lines=16,
+                    interactive=False,
+                    placeholder="Structured notes will appear here…",
+                )
+
+            with gr.Row():
+                sg_para_output = gr.Textbox(
+                    label="📖 Paragraph Summary (Study Guide)",
+                    lines=14,
+                    interactive=False,
+                    placeholder="Paragraph summary will appear here…",
+                )
+
             summarize_btn.click(
                 start_summarization_stream,
-                inputs=[clean_text_file_path_state, project_id_input],
-                outputs=[summarize_output, sg_thread_id],
+                inputs=[clean_text_file_path_state, project_id_input, depth_selector],
+                outputs=[sg_terms_output, sg_tldr_output, sg_notes_output, sg_para_output, sg_thread_id_state],
                 queue=True,
             )
- 
-            sg_feedback_input = gr.Textbox(
-                label="Feedback on Summary",
-                placeholder="Type feedback to improve summary",
+
+            # ── Feedback & refinement ──────────────────────────────────────
+            gr.Markdown("---")
+            gr.Markdown(
+                "#### 💬 Refine your summary\n"
+                "Type specific feedback (e.g. *'Add more examples to the notes'*) "
+                "or **`auto`** to auto-improve, **`save`** to finish."
             )
-            sg_continue_btn = gr.Button("Apply Summary Feedback")
-            sg_continue_output = gr.Textbox(label="Updated Summary", lines=8)
+            with gr.Row():
+                sg_feedback_input = gr.Textbox(
+                    label="Feedback",
+                    placeholder="Your feedback here… or type 'auto' / 'save'",
+                    lines=2,
+                    scale=4,
+                )
+                sg_continue_btn = gr.Button("🔄 Apply Feedback", scale=1)
+
             sg_continue_btn.click(
-                continue_summarization_feedback_stream,
-                inputs=[project_id_input, clean_text_file_path_state, sg_thread_id, sg_feedback_input],
-                outputs=[sg_continue_output],
+                continue_summarization_stream,
+                inputs=[project_id_input, clean_text_file_path_state, sg_thread_id_state, sg_feedback_input],
+                outputs=[sg_terms_output, sg_tldr_output, sg_notes_output, sg_para_output],
                 queue=True,
             )
- 
- 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 demo.launch(
     server_name="0.0.0.0",
     server_port=7860,
     share=True,
     css=custom_css,
 )
- 
