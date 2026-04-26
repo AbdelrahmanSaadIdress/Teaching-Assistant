@@ -17,16 +17,14 @@
 
 ## 📽️ Demo Videos
 
-> Click a thumbnail to watch the model in action.
 
 | Feature | Demo |
 |---|---|
-| 📄 Document Upload & Processing | *(add video link here)* |
-| ✏️ Iterative Question Generation | *(add video link here)* |
-| 📝 Exam Mode — Bulk Generation & Scoring | *(add video link here)* |
-| 🗨️ Document Question Answering (RAG) | *(add video link here)* |
-| 📚 AI Summary Generator | *(add video link here)* |
-
+| 📄 Document Upload & Processing | [▶️ Watch](docs/videos/Document%20Upload%20%26%20Processing.mp4) |
+| ✏️ Iterative Question Generation | [▶️ Watch](docs/videos/question_generation.mp4) |
+| 📝 Exam Mode — Bulk Generation & Scoring | [▶️ Watch](docs/videos/ExamGeneration.mp4) |
+| 🗨️ Document Question Answering (RAG) | [▶️ Watch](docs/videos/question_answering.mp4) |
+| 📚 AI Summary Generator | [▶️ Watch](docs/videos/summarization.mp4) |
 ---
 
 ## ✨ Features at a Glance
